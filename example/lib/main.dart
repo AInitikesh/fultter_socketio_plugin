@@ -23,16 +23,18 @@ class _MyAppState extends State<MyApp> {
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
     String platformVersion;
+
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
-      platformVersion = await IO.socket("http://10.0.2.2:8999");
-      await IO.connect();
-      IO.emit("hello");
-      IO.on.listen((String state) {
-        // Do something with new state
-        debugPrint("Nitikesh Dart " + state);
+      IO myIO = new IO();
+      myIO.socket("http://10.0.2.2:8999");
+      myIO.connect();
+      myIO.emit("message","How are you ?");
+      myIO.on("chat message",(data){
+        debugPrint(data);
       });
     } on PlatformException {
+
       platformVersion = 'Failed to get platform version.';
     }
 

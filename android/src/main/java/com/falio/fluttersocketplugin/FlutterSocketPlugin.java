@@ -15,21 +15,25 @@ import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 /** FlutterSocketPlugin */
-public class FlutterSocketPlugin implements MethodCallHandler , EventChannel.StreamHandler{
+public class FlutterSocketPlugin implements MethodCallHandler {
 
 
   private Socket mSocket;
-  private Emitter.Listener onNewMessage;
+  private MethodChannel channel;
+
+  public FlutterSocketPlugin(MethodChannel channel) {
+    this.channel = channel;
+  }
 
 
   /** Plugin registration. */
   public static void registerWith(Registrar registrar) {
     final MethodChannel channel = new MethodChannel(registrar.messenger(), "flutter_socket_plugin/method");
-    final EventChannel socketEvents = new EventChannel(registrar.messenger(), "flutter_socket_plugin/event");
-    socketEvents.setStreamHandler(new FlutterSocketPlugin());
-    channel.setMethodCallHandler(new FlutterSocketPlugin());
+    channel.setMethodCallHandler(new FlutterSocketPlugin(channel));
   }
 
   @Override
@@ -39,9 +43,9 @@ public class FlutterSocketPlugin implements MethodCallHandler , EventChannel.Str
         try {
           String url = call.argument("url");
           mSocket = IO.socket(url);
-          Log.e("Nitikesh ","Socket initialised");
+          Log.d("SocketIO ","Socket initialised");
         } catch (URISyntaxException e) {
-          Log.e("Nitikesh ",e.toString());
+          Log.e("SocketIO ",e.toString());
         }
       }
       result.success("created");
@@ -49,42 +53,35 @@ public class FlutterSocketPlugin implements MethodCallHandler , EventChannel.Str
 
     } else if (call.method.equals("connect")){
       mSocket.connect();
+      Log.d("SocketIO  ","Connected");
       result.success("connected");
     } else if (call.method.equals("emit")){
-      String messsge = call.argument("message");
-      Log.e("Nitikesh  ","emiting message");
-      mSocket.emit("message",messsge);
+      String message = call.argument("message");
+      String topic = call.argument("topic");
+      Log.d("SocketIO  ","Pushing " +  message + " on topic " + topic);
+      mSocket.emit(topic,message);
+      result.success("sent");
+    } else if (call.method.equals("on")){
+      String topic = call.argument("topic");
+      Log.d("SocketIO  ","registering to "+ topic + " topic");
+      mSocket.on(topic, onNewMessage);
       result.success("sent");
     }
     else {
       result.notImplemented();
-      Log.e("Nitikesh ","Not Implemented");
+      Log.d("SocketIO ","Not Implemented");
     }
   }
 
-  @Override
-  public void onListen(Object o, EventChannel.EventSink eventSink) {
-    onNewMessage = createEmmiterListener(eventSink);
-    mSocket.on("chat message", onNewMessage);
-  }
+  private Emitter.Listener onNewMessage = new Emitter.Listener() {
+    @Override
+    public void call(final Object... args) {
+      String data = (String)args[0];
+      Log.d("SocketIO ", "Received " + data);
+      Map<String, String> myMap= new HashMap<String, String>();
+      myMap.put("message", data);
+      channel.invokeMethod("received", myMap);
+    }
+  };
 
-  Emitter.Listener createEmmiterListener(EventChannel.EventSink event){
-    final EventChannel.EventSink myEvent = event;
-    return new Emitter.Listener() {
-      @Override
-      public void call(final Object... args) {
-        Object data =  args[0];
-
-        // add the message to view
-        myEvent.success(data);
-
-      }
-    };
-
-  }
-
-  @Override
-  public void onCancel(Object o) {
-
-  }
 }

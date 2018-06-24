@@ -3,29 +3,33 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class IO {
-  static const MethodChannel _channel = const MethodChannel('flutter_socket_plugin/method');
-  static const  EventChannel _eventChannel = const EventChannel('flutter_socket_plugin/event');
-  static Future<String> socket(url) async {
+
+  MethodChannel _channel = const MethodChannel('flutter_socket_plugin/method');
+
+  Future<String> socket(url) async {
     final String socket = await _channel.invokeMethod('socket',<String, dynamic>{'url': url});
     return socket;
   }
 
-  static Future<String> emit(message) async {
-    final String success = await _channel.invokeMethod('emit',<String, dynamic>{'message': message});
+  Future<String> emit(topic, message) async {
+    final String success = await _channel.invokeMethod('emit',<String, dynamic>{'message': message, 'topic': topic});
     return success;
   }
 
-
-  static Future<Null> connect() async {
+  Future<Null> connect() async {
     final String socket = await _channel.invokeMethod('connect');
   }
 
-  static Stream<String> get on {
 
-    return _eventChannel.receiveBroadcastStream().map((dynamic event) => _parseString(event));
+  Future<String> on(String topic, Function _handle) async {
+    final String socket = await _channel.invokeMethod('on', <String, dynamic>{'topic': topic});
+    _channel.setMethodCallHandler((call) {
+      if (call.method == 'received') {
+        final String received = call.arguments['message'];
+        Function.apply(_handle, [received]);
+      }
+    });
   }
 
-  static String _parseString(String state) {
-    return "yuhuu";
-  }
+
 }
